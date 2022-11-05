@@ -18,7 +18,7 @@ class ChessGame:
         if uci in self.board.legal_moves:
             self.board.push(uci)
             self.moves += 1
-            self.board.apply_mirror()
+            #self.board.apply_mirror()
             if self.board.is_game_over():
                 return (True, self.board.result())
             self.player = self.players[self.moves % 2]

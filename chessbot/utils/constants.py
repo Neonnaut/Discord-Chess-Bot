@@ -9,7 +9,7 @@ foundcards = ""
 
 
 with open("url.txt") as file:
-  site = file.readline()
+    site = file.readline()
 
 #this will be modified with the text
 r = requests.get(site)
