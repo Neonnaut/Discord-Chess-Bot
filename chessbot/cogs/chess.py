@@ -4,28 +4,27 @@ import discord
 from discord.ext import commands
 from discord.utils import get
 
-import utils.ChessGame as chessgame  # for the Discord-based Chess game
+import utils.chessgame as chessgame # for the Discord-based Chess game
 
-match_requests = []
-matches = []
-
-class Chess(commands.GroupCog, name="chess"):
+class Chess(commands.Cog, name="chess"):
     """Miscellaneous commands"""
 
-    COG_EMOJI = "🏷️"
+    COG_EMOJI = "♟️"
 
     def __init__(self, bot):
         self.bot = bot
-        super().__init__()  # this is now required in this context.
+        #super().__init__()  # this is now required in this context.
+
+        self.match_requests = []
+        self.matches = []
 
     @commands.hybrid_command()
     async def challenge(self, ctx: commands.Context, chalengee: discord.User):
-        """Challenges user to a match"""
+        """Challenges a user to a match"""
+
         challenger = ctx.message.author
 
-        global match_requests
-
-        match_requests.append(chessgame.ChessGame(challenger, chalengee))
+        self.match_requests.append(chessgame.ChessGame(challenger, chalengee))
         await ctx.send(
             f"User <@{chalengee.id}> has been challenged!"
         )
@@ -33,57 +32,52 @@ class Chess(commands.GroupCog, name="chess"):
     @commands.hybrid_command()
     async def accept(self, ctx: commands.Context):
         """Accepts a user's request"""
-        global match_requests
-        global matches
+
         message = ctx.message
 
         found = False
-        for request in match_requests:
+        for request in self.match_requests:
             # we have found the request
             if request.players[1].id == message.author.id:
                 svg = request.board_to_svg()
-                with open("board.svg", "w") as f:
+                with open("utils/board.svg", "w") as f:
                     f.write(svg)
-                    cairosvg.svg2png(url="board.svg", write_to="board.png")
-                    fi = discord.File("board.png")
+                    cairosvg.svg2png(url="utils/board.svg", write_to="utils/board.png")
+                    fi = discord.File("utils/board.png")
                     await ctx.send(
-                        "Challenge from <@{0.id}> has been accepted!".format(
-                            request.players[0]
-                        )
+                        f"Challenge from <@{request.players[0].id}> has been accepted!"
                     )
                     await ctx.send(
-                        "It is <@{0.id}>'s turn!".format(request.player), file=fi
+                        f"It is <@{request.player.id}>'s turn (White)", file=fi
                     )
-                matches.append(request)
-                match_requests.remove(request)
+                self.matches.append(request)
+                self.match_requests.remove(request)
                 found = True
         if not found:
             await ctx.send("No pending challenges!")
 
     @commands.hybrid_command()
     async def end(self, ctx: commands.Context):
-        """Ends match, what a loser"""
-        global matches
+        """Forfeits the match"""
 
         message = ctx.message
 
         found = False
-        for match in matches:
+        for match in self.matches:
             # we have found the match
             if match.player.id == message.author.id:
                 found = True
-                matches.remove(match)
+                self.matches.remove(match)
                 await ctx.send("Match forfeited.")
         if not found:
             await ctx.send("No match currently.")
 
     @commands.hybrid_command()
-    async def move(self, ctx: commands.Context, move: str):
+    async def move(self, ctx: commands.Context, *, move: str):
         """Makes move"""
-        move.strip(" ")
-        global matches
+        move = str(move.strip(" "))
         found = False
-        for match in matches:
+        for match in self.matches:
             # we have found the match
             if match.player.id == ctx.message.author.id:
                 found = True
@@ -98,21 +92,21 @@ class Chess(commands.GroupCog, name="chess"):
                     elif result == "1/2-1/2":
                         draw = True
                 if not valid:
-                    await ctx.send("Invalid move, '{0}'".format(move))
+                    await ctx.send(f'Invalid move, "{move}".')
                 else:
                     svg = match.board_to_svg()
-                    with open("board.svg", "w") as f:
+                    with open("utils/board.svg", "w") as f:
                         f.write(svg)
-                        cairosvg.svg2png(url="board.svg", write_to="board.png")
-                        fi = discord.File("board.png")
-                        m = "It is now <@{0.id}>'s turn!".format(match.player)
+                        cairosvg.svg2png(url="utils/board.svg", write_to="utils/board.png")
+                        fi = discord.File("utils/board.png")
+                        m = f"It is now <@{match.player.id}>'s turn"
                         if winner is not None:
-                            m = "<@{0.id}> wins!".format(winner)
+                            m = f"{winner} wins!"
                         elif draw is True:
                             m = "The match was a draw!"
                         await ctx.send(m, file=fi)
                 if result is not None:
-                    matches.remove(match)
+                    self.matches.remove(match)
         if not found:
             await ctx.send("No match currently.")
 

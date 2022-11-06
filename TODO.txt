@@ -1,0 +1,6 @@
+x convert all to f strings
+say if it is white or black turn
+check for over 70 or repetitive moves
+use match case
+get flipping working
+save to database wins loss draw
