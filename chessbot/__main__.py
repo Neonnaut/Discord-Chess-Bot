@@ -4,14 +4,10 @@ from dotenv import load_dotenv
 from difflib import SequenceMatcher
 from discord import Intents
 
-import discord
 from discord.ext import commands
-from discord.utils import get, _ColourFormatter
+from discord.utils import _ColourFormatter
 
-import os
-from dotenv import load_dotenv
-
-ERR = "x"
+from __init__ import ERR, TOKEN
 
 os.chdir(os.path.dirname(os.path.realpath(__file__))) # Directoy that __main__.py is in is now root directory if it wasn't
 
@@ -28,7 +24,7 @@ def main():
         case_insensitive=True
     )
     load_dotenv()
-    bot.run(os.getenv("TOKEN"), log_handler=None) # Run this bot instance
+    bot.run(TOKEN, log_handler=None) # Run this bot instance
 
 
 class MyBot(commands.Bot):

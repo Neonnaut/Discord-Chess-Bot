@@ -1,6 +1,15 @@
 x convert all to f strings
-say if it is white or black turn
-check for over 70 or repetitive moves
-use match case
+x say if it is white or black turn
+x show move in green
+x say "not your turn"
+x delete error messages after a while
+x forbid bots from being challenged
+x use match case
+x stop a player from creating two game for themselves
+x put all in one command
+
+get match over reason
 get flipping working
 save to database wins loss draw
+
+
