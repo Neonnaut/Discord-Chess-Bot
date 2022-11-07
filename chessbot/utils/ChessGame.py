@@ -4,6 +4,8 @@ from discord import Embed, File
 import datetime as dt
 import cairosvg
 
+from __init__ import ERR
+
 class ChessMatch:
     """One ChessGame for each match"""
 
@@ -16,11 +18,13 @@ class ChessMatch:
 
         self.player = self.white
 
+        self.result = None
+
     def make_move(self, move):
         try:
             uci = chess.Move.from_uci(move)
         except ValueError as e:
-            return False
+            return (False, None)
         else:
             if uci in self.board.legal_moves:
                 
@@ -28,7 +32,18 @@ class ChessMatch:
                 self.moves += 1
                 
                 if self.board.is_game_over():
+                    
+                    win_method = self.board.outcome().termination.name.lower()
+
+                    if self.board.outcome().winner == chess.WHITE:
+                        self.result = f"White, {self.white[0].display_name}, has won by {win_method}"
+                    elif self.board.outcome().winner == chess.BLACK:
+                        self.result = f"White, {self.black[0].display_name}, has won by {win_method}"
+                    else:
+                        self.result = f"{win_method}. The game is over"
+
                     return (True, self.board.result())
+                    chess.Outcome.termination
                 else:
                     #self.board.apply_mirror()
                     #self.board.apply_transform(chess.flip_vertical)
@@ -41,9 +56,6 @@ class ChessMatch:
             else:
                 return (False, None)
 
-    def board_to_svg(self):
-        return chess.svg.board(self.board, size=350)
-
     def print_chess_board(self, move):
         svg = chess.svg.board(self.board, lastmove=move)
 
@@ -51,7 +63,16 @@ class ChessMatch:
             f.write(svg)
             cairosvg.svg2png(url="utils/board.svg", write_to="utils/board.png")
             board = File("utils/board.png")
-        return (f"{self.player[1].capitalize()}'s turn now <@{self.player[0].id}>", board)
+        if self.result == None:
+            # If the game has not ended
+            check = ''
+            if self.board.is_check():
+                check = 'You are in check '
+                print("check")
+            return (f"{check}{self.player[1].capitalize()}'s turn now <@{self.player[0].id}>", board)
+        else:
+            # If the game has ended
+            return (f"{self.result}", board)
 
 
 def generate_info_embed() -> Embed:

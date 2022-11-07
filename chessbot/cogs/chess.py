@@ -78,13 +78,13 @@ class ChessCog(commands.Cog, name="Chess"):
                         f"{self.matches[2].white[0].name} v {self.matches[2].black[0].name}\n\n"
                         "Please wait for these matches to finish and try challenging again.")
                     else:
-                        # create match
+                        # MAGIC STARTS HERE
+                        # Create a match and append to current matches
                         match = chessgame.ChessMatch(challenger, challengee)
                         self.matches.append(match)
-                        
-                        board = match.print_chess_board(None)
-                        await ctx.send(f"{CHECK}The challenge has been accepted.\n" + board[0], file=board[1]
-                        )
+                        # Print the board
+                        happyMessage, board = match.print_chess_board(None)
+                        await ctx.send(f"{CHECK}The challenge has been accepted.\n" + happyMessage, file=board)
                 else:
                     # Ran out of time or was deleted
                     await ctx.send(f"{INFO} The challenge was not accepted")
@@ -95,7 +95,7 @@ class ChessCog(commands.Cog, name="Chess"):
 
         move = str(move.replace(" ",""))
         if len(move) < 4 or len(move) > 5:
-            # "a1b" move was too few characters
+            # "a1b" move was too few characters or too much
             followMessage = await ctx.send(f"{INFO} \"{move}\" is not a valid move. It should look like: `chess a2b3`")
             try:
                 await followMessage.delete(delay=5)
@@ -106,44 +106,24 @@ class ChessCog(commands.Cog, name="Chess"):
             found = False
             # Go through all the matches
             for match in self.matches:
-
                 # if the current turn's chess player's id is the command user id
                 if match.player[0].id == ctx.message.author.id:
                     found = True
+                    # Make the chess move
                     valid, result = match.make_move(move)
-                    winner = None
-                    draw = False
-                    if result is not None:
-                        if result == "1-0":
-                            winner = match.player[0]
-                        elif result == "0-1":
-                            if match.player[1] == "black":
-                                winner = match.white[0].display_name
-                            else:
-                                winner = match.black[0].display_name
-                        elif result == "1/2-1/2":
-                            draw = True
-                    if not valid:
+                    if valid:
+                        # Print the board
+                        happyMessage, board = match.print_chess_board(chess.Move.from_uci(move))
+                        await ctx.send(happyMessage, file=board)
+                        # Delete match if game won
+                        if result is not None:
+                            self.matches.remove(match)
+                    else:
                         followMessage = await ctx.send(f'{WARN} Invalid move, "{move}".')
                         try:
                             await followMessage.delete(delay=5)
                         except Exception:
                             pass
-                    else:
-
-                        svg = chess.svg.board(match.board, lastmove=chess.Move.from_uci(move))
-                        with open("utils/board.svg", "w") as f:
-                            f.write(svg)
-                            cairosvg.svg2png(url="utils/board.svg", write_to="utils/board.png")
-                            fi = discord.File("utils/board.png")
-                            m = f"{match.player[1].capitalize()}'s turn now <@{match.player[0].id}>"
-                            if winner is not None:
-                                m = f"{winner} wins!"
-                            elif draw is True:
-                                m = "The match was a draw!"
-                            await ctx.send(m, file=fi)
-                    if result is not None:
-                        self.matches.remove(match)
             if not found:
                 followMessage = await ctx.send(f"{INFO} You are not playing, or it is not your turn.")
                 try:
