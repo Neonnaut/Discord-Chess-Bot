@@ -20,6 +20,28 @@ class ChessCog(commands.Cog, name="Chess"):
 
         self.matches = []
 
+    """
+    @commands.hybrid_command()
+    async def chess(self, ctx, action):
+        ""Plays chess | challenge:\"@user\", move:\"a1a2\", \"concede\", \"help\".""
+
+        match action:
+            case "concede" | "forfeit" | "quit":
+                # Then concede
+                await self.concede(ctx)
+            case None | "info" | "help":
+                # Send help embed
+                await ctx.reply(embed=generate_info_embed(), mention_author=False, ephemeral=False)
+            case _:
+                try:
+                    # Challenge another user
+                    challengee = await commands.MemberConverter().convert(ctx, action)
+                    await self.challenge(ctx, challengee)
+                except:
+                    # Interpret action as a chess move
+                    await self.move(ctx, action)
+    """
+
     @commands.hybrid_command()
     @commands.guild_only()
     async def challenge(self, ctx: commands.Context, challengee: discord.User):
@@ -86,7 +108,7 @@ class ChessCog(commands.Cog, name="Chess"):
     @commands.hybrid_command()
     @commands.guild_only()
     async def move(self, ctx: commands.Context, move: str):
-        """Makes chess move"""
+        """Makes a chess move"""
 
         move = str(move.replace(" ",""))
         if len(move) < 4 or len(move) > 5:
@@ -151,32 +173,10 @@ class ChessCog(commands.Cog, name="Chess"):
         """Shows info about Discord Chess"""
         await ctx.reply(embed=generate_chess_info_embed(), mention_author=False, ephemeral=False)
 
-
-    """
-    @commands.hybrid_command()
-    async def chess(self, ctx, action):
-        ""Plays chess | challenge:\"@user\", move:\"a1a2\", concede:\"concede\", help:\"info\".""
-
-        match action:
-            case "concede" | "forfeit" | "quit":
-                # Then concede
-                await self.concede(ctx)
-            case None | "info" | "help":
-                # Send help embed
-                await ctx.reply(embed=generate_info_embed(), mention_author=False, ephemeral=False)
-            case _:
-                try:
-                    # Challenge another user
-                    challengee = await commands.MemberConverter().convert(ctx, action)
-                    await self.challenge(ctx, challengee)
-                except:
-                    # Interpret action as a chess move
-                    await self.move(ctx, action)
-    """
-
     @commands.hybrid_command()
     @commands.guild_only()
     async def chessdotcom_profile(self, ctx, username):
+        """Displays a profile found on Chess.com"""
         embed=generate_chessdotcom_embed(username)
         if embed:
             await ctx.reply(embed=embed)
