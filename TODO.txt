@@ -7,9 +7,9 @@ x forbid bots from being challenged
 x use match case
 x stop a player from creating two game for themselves
 x put all in one command
+x get match over reason
 
-get match over reason
-get flipping working
+get flipping working as an option in the command
 save to database wins loss draw
 
 

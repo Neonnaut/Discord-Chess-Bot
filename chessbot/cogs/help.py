@@ -51,7 +51,7 @@ class MyHelpCommand(commands.MinimalHelpCommand):
                 continue
             emoji = getattr(cog, "COG_EMOJI", None)
             options.append(discord.SelectOption(
-                label=cog.qualified_name if cog else "No Category",
+                label=cog.qualified_name.capitalize() if cog else "No Category",
                 emoji=emoji,
                 description=cog.description[:100] if cog and cog.description else None
             ))
@@ -84,7 +84,7 @@ class MyHelpCommand(commands.MinimalHelpCommand):
                 filtered = await self.filter_commands(command_set, sort=True)
                 if not filtered:
                     continue
-                name = cog.qualified_name if cog else "No category"
+                name = cog.qualified_name.capitalize() if cog else "No category"
                 emoji = getattr(cog, "COG_EMOJI", None)
                 cog_label = f"{emoji} {name}" if emoji else name
                 # \u2002 is an en-space
@@ -133,7 +133,7 @@ class MyHelpCommand(commands.MinimalHelpCommand):
             )
         emoji = getattr(cog, "COG_EMOJI", None)
         return await self._help_embed(
-            title=f"{emoji} {cog.qualified_name}" if emoji else cog.qualified_name,
+            title=f"{emoji} {cog.qualified_name.capitalize()}" if emoji else cog.qualified_name.capitalize(),
             description=cog.description,
             command_set=cog.get_commands()
         )

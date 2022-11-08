@@ -1,19 +1,11 @@
-import cairosvg
-import datetime as dt
-
 import discord
 from discord.ext import commands
-from discord.utils import get
-from discord import app_commands
 
-import chess
-
-import utils.chessgame as chessgame # for the Discord-based Chess game
-
-from utils.chessgame import (
+from utils.chess_utils import (
     ChessMatch,
-    generate_info_embed,
-    ynReaction
+    generate_chess_info_embed,
+    generate_chessdotcom_embed,
+    get_reaction
 )
 
 from __init__ import ERR, CHECK, WARN, INFO
@@ -29,8 +21,9 @@ class ChessCog(commands.Cog, name="Chess"):
         self.matches = []
 
     @commands.hybrid_command()
+    @commands.guild_only()
     async def challenge(self, ctx: commands.Context, challengee: discord.User):
-        """Challenges a user to a match"""
+        """Challenges a user to a chess match"""
 
         challenger = ctx.message.author
 
@@ -41,7 +34,7 @@ class ChessCog(commands.Cog, name="Chess"):
             except Exception:
                 pass
         elif challengee.bot:
-            followMessage = await ctx.send(f"{ERR} You cannot challenge any bots")
+            followMessage = await ctx.send(f"{ERR} You cannot challenge bots")
             try:
                 await followMessage.delete(delay=5)
             except Exception:
@@ -51,14 +44,14 @@ class ChessCog(commands.Cog, name="Chess"):
             # Go through all the matches
             for match in self.matches:
                 # if the current turn's chess player's id is the command user id
-                if match.white[0].id == challenger.id or match.black[0].id == challenger.id:
+                if match.get_white_id() == challenger.id or match.get_black_id() == challenger.id:
                     found = True
                     followMessage = await ctx.send(f"{ERR} You are already playing a match.")
                     try:
                         await followMessage.delete(delay=5)
                     except Exception:
                         pass
-                elif match.white[0].id == challengee.id or match.black[0].id == challengee.id:
+                elif match.get_white_id() == challengee.id or match.get_black_id() == challengee.id:
                     found = True
                     followMessage = await ctx.send(f"{ERR} Your challengee is already playing a match.")
                     try:
@@ -69,29 +62,31 @@ class ChessCog(commands.Cog, name="Chess"):
                 # Ask the challengee to accept the challenge through reactions within 6 minutes
                 confMessage = f"<@{challengee.id}> you have been challenged to a chess match by <@{challenger.id}>"+\
                 "\nYou have 6 minutes to accept."
-                if await ynReaction(ctx, self.bot.user.id, challengee.id, confMessage) == 'Y':
+                if await get_reaction(ctx, self.bot.user.id, challengee.id, confMessage) == 'Y':
                     # Got response from user
                     if len(self.matches) >= 3:
+                        match_list = ""
+                        for match in self.matches:
+                            match_list += f"{match.get_white_name()} v {match.get_black_name()}\n"
                         await ctx.send(f"{ERR} There are already three chess matches playing at the same time!\n"
-                        f"{self.matches[0].white[0].name} v {self.matches[0].black[0].name}\n"
-                        f"{self.matches[1].white[0].name} v {self.matches[1].black[0].name}\n"
-                        f"{self.matches[2].white[0].name} v {self.matches[2].black[0].name}\n\n"
+                        f"{match_list}"
                         "Please wait for these matches to finish and try challenging again.")
                     else:
                         # MAGIC STARTS HERE
                         # Create a match and append to current matches
-                        match = chessgame.ChessMatch(challenger, challengee)
+                        match = ChessMatch(challenger, challengee)
                         self.matches.append(match)
                         # Print the board
                         happyMessage, board = match.print_chess_board(None)
-                        await ctx.send(f"{CHECK}The challenge has been accepted.\n" + happyMessage, file=board)
+                        await ctx.send(f"{CHECK} The challenge has been accepted.\n" + happyMessage, file=board)
                 else:
                     # Ran out of time or was deleted
                     await ctx.send(f"{INFO} The challenge was not accepted")
 
     @commands.hybrid_command()
+    @commands.guild_only()
     async def move(self, ctx: commands.Context, move: str):
-        """Makes move"""
+        """Makes chess move"""
 
         move = str(move.replace(" ",""))
         if len(move) < 4 or len(move) > 5:
@@ -107,16 +102,16 @@ class ChessCog(commands.Cog, name="Chess"):
             # Go through all the matches
             for match in self.matches:
                 # if the current turn's chess player's id is the command user id
-                if match.player[0].id == ctx.message.author.id:
+                if match.get_player_id() == ctx.message.author.id:
                     found = True
                     # Make the chess move
-                    valid, result = match.make_move(move)
+                    valid, done_move = match.make_move(move)
                     if valid:
                         # Print the board
-                        happyMessage, board = match.print_chess_board(chess.Move.from_uci(move))
+                        happyMessage, board = match.print_chess_board(done_move)
                         await ctx.send(happyMessage, file=board)
                         # Delete match if game won
-                        if result is not None:
+                        if match.result is not None:
                             self.matches.remove(match)
                     else:
                         followMessage = await ctx.send(f'{WARN} Invalid move, "{move}".')
@@ -132,12 +127,13 @@ class ChessCog(commands.Cog, name="Chess"):
                     pass
 
     @commands.hybrid_command()
+    @commands.guild_only()
     async def concede(self, ctx: commands.Context):
-        """Concedes the match"""
+        """Concedes the chess match"""
         found = False
         for match in self.matches:
             # we have found the match
-            if match.player[0].id == ctx.message.author.id:
+            if match.get_player_id() == ctx.message.author.id:
                 found = True
                 # Remove the match
                 self.matches.remove(match)
@@ -150,15 +146,16 @@ class ChessCog(commands.Cog, name="Chess"):
                 pass
 
     @commands.hybrid_command()
+    @commands.guild_only()
     async def info(self, ctx: commands.Context):
-        """Shows info about Discor Chess"""
-        await ctx.reply(embed=generate_info_embed(), mention_author=False, ephemeral=False)
+        """Shows info about Discord Chess"""
+        await ctx.reply(embed=generate_chess_info_embed(), mention_author=False, ephemeral=False)
 
 
     """
     @commands.hybrid_command()
     async def chess(self, ctx, action):
-        ""Plays chess | challenge:\"@user\"; move:\"a1a2\"; concede:\"concede\"; Info:\"info\"""
+        ""Plays chess | challenge:\"@user\", move:\"a1a2\", concede:\"concede\", help:\"info\".""
 
         match action:
             case "concede" | "forfeit" | "quit":
@@ -176,6 +173,15 @@ class ChessCog(commands.Cog, name="Chess"):
                     # Interpret action as a chess move
                     await self.move(ctx, action)
     """
+
+    @commands.hybrid_command()
+    @commands.guild_only()
+    async def chessdotcom_profile(self, ctx, username):
+        embed=generate_chessdotcom_embed(username)
+        if embed:
+            await ctx.reply(embed=embed)
+        else:
+            await ctx.reply(f"{ERR} Could not find the username \"{username}\"")
 
 async def setup(bot: commands.bot):
     await bot.add_cog(ChessCog(bot))
