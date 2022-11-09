@@ -103,44 +103,6 @@ class ChessMatch:
             # If the game has ended
             return (f"{self.result}", board)
 
-
-def generate_chess_info_embed() -> Embed:
-    """
-    Generates an embed with information about chess
-    Returns:
-        discord.Embed: The embed to be sent
-    """
-
-    embed = Embed(
-        title="Discord Chess",
-        description=
-            "Play a standard game of Chess with another user."
-    )
-    embed.add_field(
-        inline=False,
-        name=f"**You can challenge a user to a match with:**",
-        value=
-            "`chess @user`"
-            "\nThe challengee then has six minutes to accept the challenge."
-            "\nThis bot only runs three matches at the same time. "
-            "You cannot challenge yourself. You cannot be in more than one match at one time"
-    )
-    embed.add_field(
-        inline=False,
-        name=f"**Concede defeat**",
-        value=
-            "End the match prematurely with `chess concede`.\nOther aliases are `end`, `forfeit` and `quit`"
-    )
-    embed.add_field(
-        inline=False,
-        name=f"**Chess move**",
-        value=
-            "A move from a7 to a8 would be `chess a7a8`\n"
-            "Or `chess a7a8q` (if the latter is a promotion to a queen).\n"
-            "Castling is done via the king moving into the castle's square."
-    )
-    return embed
-
 async def get_reaction(ctx, botID, challengeeID, question):
     """Get confirmation from the user"""
 
@@ -176,6 +138,43 @@ async def get_reaction(ctx, botID, challengeeID, question):
 
     return output
 
+def generate_chess_info_embed() -> Embed:
+    """
+    Generates an embed with information about chess
+    Returns:
+        discord.Embed: The embed to be sent
+    """
+
+    embed = Embed(
+        title="Discord Chess",
+        description="Play a standard game of Chess with another user",
+        colour=0xd18b47
+    )
+    embed.add_field(
+        inline=False,
+        name=f"**You can challenge a user to a match with:**",
+        value=
+            "`chess @user`"
+            "\nThe challengee then has six minutes to accept the challenge."
+            "\nThis bot only runs three matches at the same time. "
+            "You cannot challenge yourself. You cannot be in more than one match at one time"
+    )
+    embed.add_field(
+        inline=False,
+        name=f"**Concede defeat**",
+        value=
+            "End the match prematurely with `chess concede`.\nOther aliases are `end`, `forfeit` and `quit`"
+    )
+    embed.add_field(
+        inline=False,
+        name=f"**Chess move**",
+        value=
+            "A move from a7 to a8 would be `chess a7a8`\n"
+            "Or `chess a7a8q` (if the latter is a promotion to a queen).\n"
+            "Castling is done via the king moving into the castle's square."
+    )
+    return embed
+
 def generate_chessdotcom_embed(player) -> Embed:
     try:
         pp = chessdotcom.get_player_profile(player).json["player"]
@@ -186,7 +185,8 @@ def generate_chessdotcom_embed(player) -> Embed:
     embed = Embed(
         title = pp["username"].capitalize(),
         url = pp["url"],
-        description = 'Player info and stats'
+        description = 'Chess.com player info and stats',
+        colour=0xd18b47
     )
 
     try:
@@ -195,7 +195,7 @@ def generate_chessdotcom_embed(player) -> Embed:
         pass
 
     embed.add_field(
-        name = "Country",
+        name = "Country:",
         value = getCountry(pp["country"]),
         inline = True
     )
@@ -212,7 +212,7 @@ def generate_chessdotcom_embed(player) -> Embed:
 
     try:
         embed.add_field(
-            name = "FIDE",
+            name = "FIDE:",
             value = ps["fide"],
             inline = False
         )
@@ -221,7 +221,7 @@ def generate_chessdotcom_embed(player) -> Embed:
 
     try:
         embed.add_field(
-            name = "Rapid",
+            name = "Rapid:",
             value =
             f'Win: **{ps["chess_rapid"]["record"]["win"]}**, '
             f'Loss: **{ps["chess_rapid"]["record"]["win"]}**, '
@@ -233,7 +233,7 @@ def generate_chessdotcom_embed(player) -> Embed:
 
     try:
         embed.add_field(
-            name = "Bullet",
+            name = "Bullet:",
             value =
             f'Win: **{ps["chess_bullet"]["record"]["win"]}**, '
             f'Loss: **{ps["chess_bullet"]["record"]["win"]}**, '
@@ -245,7 +245,7 @@ def generate_chessdotcom_embed(player) -> Embed:
 
     try:
         embed.add_field(
-            name = "Blitz",
+            name = "Blitz:",
             value =
             f'Win: **{ps["chess_blitz"]["record"]["win"]}**, '
             f'Loss: **{ps["chess_blitz"]["record"]["win"]}**, '
@@ -262,6 +262,7 @@ def getCountry(site):
     text = r.text
     countryISOData = json.loads(text)
     name = countryISOData['name']
-    emoji  = f""":flag_{site.replace("https://api.chess.com/pub/country/", '').lower()}:"""
-    specialString = f"{emoji} {name}"
+    emoji  = site.replace("https://api.chess.com/pub/country/", '').lower()
+    emoji = ':globe_with_meridians:' if emoji == 'xx' else f':flag_{emoji}:'
+    specialString = f'{emoji} {name}'
     return specialString

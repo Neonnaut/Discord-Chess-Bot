@@ -10,8 +10,8 @@ from utils.chess_utils import (
 
 from __init__ import ERR, CHECK, WARN, INFO
 
-class ChessCog(commands.Cog, name="Chess"):
-    """Miscellaneous commands"""
+class Chess(commands.Cog, name="Chess"):
+    """Commands for playing chess"""
 
     COG_EMOJI = "♟️"
 
@@ -148,7 +148,7 @@ class ChessCog(commands.Cog, name="Chess"):
                 except Exception:
                     pass
 
-    @commands.hybrid_command()
+    @commands.hybrid_command(aliases=["quit","forfeit","end"])
     @commands.guild_only()
     async def concede(self, ctx: commands.Context):
         """Concedes the chess match"""
@@ -167,13 +167,13 @@ class ChessCog(commands.Cog, name="Chess"):
             except Exception:
                 pass
 
-    @commands.hybrid_command()
+    @commands.hybrid_command(aliases=["rules"])
     @commands.guild_only()
     async def info(self, ctx: commands.Context):
         """Shows info about Discord Chess"""
         await ctx.reply(embed=generate_chess_info_embed(), mention_author=False, ephemeral=False)
 
-    @commands.hybrid_command()
+    @commands.hybrid_command(aliases=["profile","chessdotcom"])
     @commands.guild_only()
     async def chessdotcom_profile(self, ctx, username):
         """Displays a profile found on Chess.com"""
@@ -184,4 +184,4 @@ class ChessCog(commands.Cog, name="Chess"):
             await ctx.reply(f"{ERR} Could not find the username \"{username}\"")
 
 async def setup(bot: commands.bot):
-    await bot.add_cog(ChessCog(bot))
+    await bot.add_cog(Chess(bot))

@@ -33,7 +33,6 @@ class MyBot(commands.Bot):
             if cog.endswith(".py") and not cog.startswith("_"):
                 try:
                     await self.load_extension("cogs." + cog[:-3])
-                    print(f"loaded {cog}")
                 except Exception as e:
                     logger.error(str(e))
 
