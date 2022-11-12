@@ -17,13 +17,12 @@ class Chess(commands.Cog, name="Chess"):
 
     def __init__(self, bot):
         self.bot = bot
-
         self.matches = []
 
     """
     @commands.hybrid_command()
-    async def chess(self, ctx, action):
-        ""Plays chess | challenge:\"@user\", move:\"a1a2\", \"concede\", \"help\".""
+    async def chess(self, ctx: commands.Context, action):
+        ""Plays chess | challenge:\"@user\" | move:\"a1a2\" | \"concede\" | \"help\".""
 
         match action:
             case "concede" | "forfeit" | "quit":
@@ -31,7 +30,7 @@ class Chess(commands.Cog, name="Chess"):
                 await self.concede(ctx)
             case None | "info" | "help":
                 # Send help embed
-                await ctx.reply(embed=generate_info_embed(), mention_author=False, ephemeral=False)
+                await ctx.reply(embed=generate_chess_info_embed(ctx.clean_prefix), mention_author=False, ephemeral=False)
             case _:
                 try:
                     # Challenge another user
@@ -50,17 +49,9 @@ class Chess(commands.Cog, name="Chess"):
         challenger = ctx.message.author
 
         if challenger == challengee:
-            followMessage = await ctx.send(f"{ERR} You cannot challenge yourself")
-            try:
-                await followMessage.delete(delay=5)
-            except Exception:
-                pass
+            await ctx.send(f"{ERR} You cannot challenge yourself.", delete_after=5)
         elif challengee.bot:
-            followMessage = await ctx.send(f"{ERR} You cannot challenge bots")
-            try:
-                await followMessage.delete(delay=5)
-            except Exception:
-                pass
+            await ctx.send(f"{ERR} You cannot challenge bots.", delete_after=5)
         else:
             found = False
             # Go through all the matches
@@ -68,18 +59,10 @@ class Chess(commands.Cog, name="Chess"):
                 # if the current turn's chess player's id is the command user id
                 if match.get_white_id() == challenger.id or match.get_black_id() == challenger.id:
                     found = True
-                    followMessage = await ctx.send(f"{ERR} You are already playing a match.")
-                    try:
-                        await followMessage.delete(delay=5)
-                    except Exception:
-                        pass
+                    await ctx.send(f"{ERR} You are already playing a match.", delete_after=5)
                 elif match.get_white_id() == challengee.id or match.get_black_id() == challengee.id:
                     found = True
-                    followMessage = await ctx.send(f"{ERR} Your challengee is already playing a match.")
-                    try:
-                        await followMessage.delete(delay=5)
-                    except Exception:
-                        pass
+                    await ctx.send(f"{ERR} Your challengee is already playing a match.", delete_after=5)
             if not found:
                 # Ask the challengee to accept the challenge through reactions within 6 minutes
                 confMessage = f"<@{challengee.id}> you have been challenged to a chess match by <@{challenger.id}>"+\
@@ -103,21 +86,17 @@ class Chess(commands.Cog, name="Chess"):
                         await ctx.send(f"{CHECK} The challenge has been accepted.\n" + happyMessage, file=board)
                 else:
                     # Ran out of time or was deleted
-                    await ctx.send(f"{INFO} The challenge was not accepted")
+                    await ctx.send(f"{INFO} The challenge did not accept.")
 
     @commands.hybrid_command()
     @commands.guild_only()
     async def move(self, ctx: commands.Context, move: str):
-        """Makes a chess move"""
+        """Makes chess move"""
 
         move = str(move.replace(" ",""))
         if len(move) < 4 or len(move) > 5:
             # "a1b" move was too few characters or too much
-            followMessage = await ctx.send(f"{INFO} \"{move}\" is not a valid move. It should look like: `chess a2b3`")
-            try:
-                await followMessage.delete(delay=5)
-            except Exception:
-                pass
+            await ctx.send(f"{INFO} \"{move}\" is not a valid move. It should look like: `chess a2b3`", delete_after=5)
         else:
             # a7a8q move was the right amount of characters
             found = False
@@ -136,19 +115,11 @@ class Chess(commands.Cog, name="Chess"):
                         if match.result is not None:
                             self.matches.remove(match)
                     else:
-                        followMessage = await ctx.send(f'{WARN} Invalid move, "{move}".')
-                        try:
-                            await followMessage.delete(delay=5)
-                        except Exception:
-                            pass
+                        await ctx.send(f'{WARN} Invalid move, "{move}".', delete_after=5)
             if not found:
-                followMessage = await ctx.send(f"{INFO} You are not playing, or it is not your turn.")
-                try:
-                    await followMessage.delete(delay=5)
-                except Exception:
-                    pass
+                await ctx.send(f"{INFO} You are not playing, or it is not your turn.", delete_after=5)
 
-    @commands.hybrid_command(aliases=["quit","forfeit","end"])
+    @commands.hybrid_command()
     @commands.guild_only()
     async def concede(self, ctx: commands.Context):
         """Concedes the chess match"""
@@ -161,11 +132,7 @@ class Chess(commands.Cog, name="Chess"):
                 self.matches.remove(match)
                 await ctx.send(f"{CHECK} Match forfeited.")
         if not found:
-            followMessage = await ctx.send(f"{INFO} You are not in a match.")
-            try:
-                await followMessage.delete(delay=5)
-            except Exception:
-                pass
+            await ctx.send(f"{INFO} You are not in a match.", delete_after=5)
 
     @commands.hybrid_command(aliases=["rules"])
     @commands.guild_only()
@@ -181,7 +148,7 @@ class Chess(commands.Cog, name="Chess"):
         if embed:
             await ctx.reply(embed=embed)
         else:
-            await ctx.reply(f"{ERR} Could not find the username \"{username}\"")
+            await ctx.reply(f"{ERR} Could not find the username \"{username}\"", delete_after=5)
 
 async def setup(bot: commands.bot):
     await bot.add_cog(Chess(bot))

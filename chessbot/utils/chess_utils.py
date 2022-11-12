@@ -8,6 +8,8 @@ import requests
 import time
 from discord import Embed, File
 
+from __init__ import KFACTOR
+
 class ChessMatch:
     """One ChessGame for each match"""
 
@@ -75,10 +77,10 @@ class ChessMatch:
 
         win_method = self.board.outcome().termination.name.lower()
         if self.board.outcome().winner == chess.WHITE:
-            self.winner = self.white
+            #self.winner = self.white
             self.result = f"White, {self.get_white_player_name()}, has won by {win_method} in {self.moves} moves"
         elif self.board.outcome().winner == chess.BLACK:
-            self.winner = self.black
+            #self.winner = self.black
             self.result = f"Black, {self.get_black_player_name()}, has won by {win_method} in {self.moves} moves"
         else:
             self.result = f"The game has ended by {win_method}"
@@ -138,7 +140,7 @@ async def get_reaction(ctx, botID, challengeeID, question):
 
     return output
 
-def generate_chess_info_embed() -> Embed:
+def generate_chess_info_embed(prefix) -> Embed:
     """
     Generates an embed with information about chess
     Returns:
@@ -147,15 +149,15 @@ def generate_chess_info_embed() -> Embed:
 
     embed = Embed(
         title="Discord Chess",
-        description="Play a standard game of Chess with another user",
+        description="Play a standard game of Chess with another user.",
         colour=0xd18b47
     )
     embed.add_field(
         inline=False,
         name=f"**You can challenge a user to a match with:**",
         value=
-            "`chess @user`"
-            "\nThe challengee then has six minutes to accept the challenge."
+            f"`{prefix}chess @<user>`"
+            " - The challengee then has six minutes to accept the challenge."
             "\nThis bot only runs three matches at the same time. "
             "You cannot challenge yourself. You cannot be in more than one match at one time"
     )
@@ -163,14 +165,14 @@ def generate_chess_info_embed() -> Embed:
         inline=False,
         name=f"**Concede defeat**",
         value=
-            "End the match prematurely with `chess concede`.\nOther aliases are `end`, `forfeit` and `quit`"
+            f"`{prefix}chess concede` - Ends the match prematurely.\nOther aliases are `end`, `forfeit` or `quit`"
     )
     embed.add_field(
         inline=False,
         name=f"**Chess move**",
         value=
-            "A move from a7 to a8 would be `chess a7a8`\n"
-            "Or `chess a7a8q` (if the latter is a promotion to a queen).\n"
+            f"A move from a7 to a8 would be `{prefix}chess a7a8`\n"
+            f"Or `{prefix}chess a7a8q` (if the latter is a promotion to a queen).\n"
             "Castling is done via the king moving into the castle's square."
     )
     return embed
@@ -266,3 +268,21 @@ def getCountry(site):
     emoji = ':globe_with_meridians:' if emoji == 'xx' else f':flag_{emoji}:'
     specialString = f'{emoji} {name}'
     return specialString
+
+"""
+def recalculate_elo(player_1_elo, player_2_elo, player_1_result, player_2_result):
+    r1 = 10 ** (player_1_elo / 400)
+    r2 = 10 ** (player_2_elo / 400)
+
+    e1 = round(r1 / (r1 + r2),2)
+    e2 = round(r2 / (r1 + r2),2)
+
+    new_player_1_elo = int(player_1_elo + KFACTOR * (player_1_result - e1))
+    if new_player_1_elo <= 100:
+        new_player_1_elo = 100
+    new_player_2_elo = int(player_2_elo + KFACTOR * (player_2_result - e2))
+    if new_player_2_elo <= 100:
+        new_player_2_elo = 100
+
+    return new_player_1_elo, new_player_2_elo
+"""
