@@ -8,12 +8,12 @@ import requests
 import time
 from discord import Embed, File
 
-from __init__ import KFACTOR
+# from __init__ import KFACTOR
 
 class ChessMatch:
     """One ChessGame for each match"""
 
-    def __init__(self, challenger, challengee):
+    def __init__(self, challenger, challengee, do_rotating = False):
         self.board = chess.Board()
         self.moves = 0
 
@@ -25,6 +25,8 @@ class ChessMatch:
         self.winner = None
 
         self.result = None # The results of the match when it ends (A string when ended)
+
+        self.do_rotating = do_rotating # If to rotate board on turn
 
     def get_white_player_id(self):
         return self.white[0].id
@@ -54,20 +56,17 @@ class ChessMatch:
                     
                     self.match_over()
 
-                    return (True, uci)
+                    return True
                 else:
-                    #self.board.apply_mirror()
-                    #self.board.apply_transform(chess.flip_vertical)
-
                     # Make it the next player's turn
                     if self.player[1] == "white":
                         self.player = self.black
                     elif self.player[1] == "black":
                         self.player = self.white
 
-                    return (True, uci)
+                    return True
             else:
-                return (False, None)
+                return False
 
     def match_over(self):
         """
@@ -85,25 +84,63 @@ class ChessMatch:
         else:
             self.result = f"The game has ended by {win_method}"
 
-    def print_chess_board(self, move):
+    def print_chess_board(self):
         """Returns the board as an SVG and the player whos turn it is"""
 
-        svg = chess.svg.board(self.board, lastmove=move)
+        # Get if we rotate the board for the next player
+        if self.do_rotating:
+            if self.player[1] == "white":
+                orientation = True # White
+            else:
+                orientation = False # Black
+        else:
+            orientation = True # White
 
+        check = None
+
+        # Get the message to display with the embed
+        if self.result == None:
+            # If the game has not ended
+            check_message = ''
+            if self.board.is_check():
+                check_message = '. You are in check.'
+                checked_pieces = self.board.checkers()
+            happyMessage = f"{self.player[1].capitalize()}'s turn now <@{self.player[0].id}>{check_message}"
+
+            # Get the king index if the player is in check
+            if self.board.is_check():
+                if self.player[1] == "white":
+                    check = self.board.king(chess.WHITE)
+                else:
+                    check = self.board.king(chess.BLACK)
+        else:
+            # If the game has ended
+            happyMessage = f"{self.result}", board
+
+        # Get the lastmove of the chess match
+        try:
+            lastmove = self.board.peek()
+        except IndexError:
+            lastmove = None
+
+
+
+        # Create the board image
+        svg = chess.svg.board(
+            self.board,
+            lastmove=lastmove,
+            check=check,
+            colors=
+                dict.fromkeys("margin", "coord") | {"margin":"#202225", "coord":"#d6e8f5", "square light":"#dee3e6", "square dark":"#78bcde", "square light lastmove":"#cfe69e", "square dark lastmove":"#9dbf7c"},
+            orientation=orientation
+        )
         with open("utils/board.svg", "w") as f:
             f.write(svg)
             cairosvg.svg2png(url="utils/board.svg", write_to="utils/board.png")
             board = File("utils/board.png")
-        if self.result == None:
-            # If the game has not ended
-            check = ''
-            if self.board.is_check():
-                check = '. You are in check'
-                print("check")
-            return (f"{self.player[1].capitalize()}'s turn now <@{self.player[0].id}>{check}", board)
-        else:
-            # If the game has ended
-            return (f"{self.result}", board)
+
+        return (happyMessage, board)
+
 
 async def get_reaction(ctx, botID, challengeeID, question):
     """Get confirmation from the user"""
@@ -117,6 +154,7 @@ async def get_reaction(ctx, botID, challengeeID, question):
     msg = await ctx.send(question)
     await msg.add_reaction('\N{WHITE HEAVY CHECK MARK}')
     await msg.add_reaction('\N{CROSS MARK}')
+    await msg.add_reaction('\N{CLOCKWISE DOWNWARDS AND UPWARDS OPEN CIRCLE ARROWS}')
 
     while not answered and timeNow + timeDelta >= dt.datetime.now():
         msg = await msg.channel.fetch_message(msg.id)
@@ -134,6 +172,10 @@ async def get_reaction(ctx, botID, challengeeID, question):
                 elif reaction.emoji == '\N{CROSS MARK}':
                     answered = True
                     output = 'N'
+
+                elif reaction.emoji == '\N{CLOCKWISE DOWNWARDS AND UPWARDS OPEN CIRCLE ARROWS}':
+                    answered = True
+                    output = 'X'
     if not answered:
         output = 'N'
         await msg.channel.send('Time has ran out to react.')

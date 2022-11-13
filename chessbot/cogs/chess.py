@@ -43,7 +43,11 @@ class Chess(commands.Cog, name="Chess"):
 
     @commands.hybrid_command()
     @commands.guild_only()
-    async def challenge(self, ctx: commands.Context, challengee: discord.User):
+    async def challenge(
+        self,
+        ctx: commands.Context,
+        challengee: discord.User,
+    ):
         """Challenges a user to a chess match"""
 
         challenger = ctx.message.author
@@ -66,8 +70,12 @@ class Chess(commands.Cog, name="Chess"):
             if not found:
                 # Ask the challengee to accept the challenge through reactions within 6 minutes
                 confMessage = f"<@{challengee.id}> you have been challenged to a chess match by <@{challenger.id}>"+\
-                "\nYou have 6 minutes to accept."
-                if await get_reaction(ctx, self.bot.user.id, challengee.id, confMessage) == 'Y':
+                "\nYou have 6 minutes to accept.\n\nChose the arrows emoji if you want the board to rotate for each turn."
+                reaction =  await get_reaction(ctx, self.bot.user.id, challengee.id, confMessage)
+                rotate = False
+                if reaction == 'X':
+                    rotate = True
+                if reaction == 'Y' or rotate:
                     # Got response from user
                     if len(self.matches) >= 3:
                         match_list = ""
@@ -79,10 +87,10 @@ class Chess(commands.Cog, name="Chess"):
                     else:
                         # MAGIC STARTS HERE
                         # Create a match and append to current matches
-                        match = ChessMatch(challenger, challengee)
+                        match = ChessMatch(challenger, challengee, rotate)
                         self.matches.append(match)
                         # Print the board
-                        happyMessage, board = match.print_chess_board(None)
+                        happyMessage, board = match.print_chess_board()
                         await ctx.send(f"{CHECK} The challenge has been accepted.\n" + happyMessage, file=board)
                 else:
                     # Ran out of time or was deleted
@@ -92,7 +100,6 @@ class Chess(commands.Cog, name="Chess"):
     @commands.guild_only()
     async def move(self, ctx: commands.Context, move: str):
         """Makes chess move"""
-
         move = str(move.replace(" ",""))
         if len(move) < 4 or len(move) > 5:
             # "a1b" move was too few characters or too much
@@ -106,10 +113,10 @@ class Chess(commands.Cog, name="Chess"):
                 if match.get_player_id() == ctx.message.author.id:
                     found = True
                     # Make the chess move
-                    valid, done_move = match.make_move(move)
+                    valid = match.make_move(move)
                     if valid:
                         # Print the board
-                        happyMessage, board = match.print_chess_board(done_move)
+                        happyMessage, board = match.print_chess_board()
                         await ctx.send(happyMessage, file=board)
                         # Delete match if game won
                         if match.result is not None:
@@ -126,7 +133,7 @@ class Chess(commands.Cog, name="Chess"):
         found = False
         for match in self.matches:
             # we have found the match
-            if match.get_player_id() == ctx.message.author.id:
+            if match.get_black_player_id() == ctx.message.author.id or match.get_white_player_id() == ctx.message.author.id:
                 found = True
                 # Remove the match
                 self.matches.remove(match)

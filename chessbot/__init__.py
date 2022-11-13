@@ -5,6 +5,8 @@ load_dotenv()
 
 TOKEN = os.getenv("TOKEN")
 
+KFACTOR = 24
+
 CHECK = ':white_check_mark:'
 ERR = ':x:'
 WARN = ':warning:'

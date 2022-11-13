@@ -8,8 +8,8 @@ x use match case
 x stop a player from creating two game for themselves
 x put all in one command
 x get match over reason
+x get flipping working as an option in the command
 
-get flipping working as an option in the command
 save to database wins loss draw
 
 
