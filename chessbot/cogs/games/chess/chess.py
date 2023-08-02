@@ -2,8 +2,7 @@ import cairosvg
 import chess
 import chess.engine
 import chess.svg
-import datetime as dt
-from discord import Embed, File
+from discord import File
 
 chess_utils_folder = "cogs/games/chess"
 
