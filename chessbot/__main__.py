@@ -1,91 +1,98 @@
-import logging
-import os
-from dotenv import load_dotenv
+import aiohttp, logging, os
 from difflib import SequenceMatcher
-from discord import Intents
 
+from discord import Activity, ActivityType, Intents
 from discord.ext import commands
-from discord.utils import _ColourFormatter
 
-from __init__ import ERR, TOKEN
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
-os.chdir(os.path.dirname(os.path.realpath(__file__))) # Directoy that __main__.py is in is now root directory if it wasn't
+from constants import DISCORD_CLIENT, PREFIX, TESTING, ERR, WARN
 
-logger = logging.getLogger() # Create logger (allows discord.py and our logs to be shown on the terminal)
-logger.setLevel(logging.INFO) # Set level to info (ignores debug logs)
-ch = logging.StreamHandler() # Create console handler
-ch.setFormatter(_ColourFormatter()) # Add discord.py's custom formatter to ch
-logger.addHandler(ch) # Add ch to logger
 
 def main():
-    bot = MyBot( # Define an instance of this bot
-        command_prefix=commands.when_mentioned_or(*["!!", "++"]),
-        intents=Intents().all(),
-        case_insensitive=True
+    bot = MyBot( # define an instance of the bot class to be run
+        command_prefix=commands.when_mentioned_or(PREFIX),
+        intents=Intents().all(), case_insensitive=True
     )
-    load_dotenv()
-    bot.run(TOKEN, log_handler=None) # Run this bot instance
-
+    bot.run(DISCORD_CLIENT, log_handler=None) # Run this bot instance
 
 class MyBot(commands.Bot):
     async def setup_hook(self):
-        for cog in sorted(os.listdir("./cogs")): # Load all the cogs / extensions in the cogs folder
-            if cog.endswith(".py") and not cog.startswith("_"):
+        # For HTTP requests
+        self.session = aiohttp.ClientSession()
+        # Create a custom logger
+        self.logger = logging.getLogger()
+        self.logger.setLevel(logging.INFO)
+        ch = logging.StreamHandler()
+        ch.setFormatter(LoggerFormatter())
+        self.logger.addHandler(ch)
+        # Load cogs from the cogs folder
+        for cog in sorted(os.listdir("./cogs")):
+            if os.path.isdir(f"./cogs/{cog}") and not cog.startswith("__"):
                 try:
-                    await self.load_extension("cogs." + cog[:-3])
+                    await self.load_extension(f"cogs.{cog}._{cog}")
                 except Exception as e:
-                    logger.error(str(e))
+                    self.logger.error(str(e))
 
     async def on_ready(self): # Prints that the bot is running
-        logger.info(f'Logged in as {self.user.name}')
+        await self.change_presence(activity=Activity(type=ActivityType.listening,
+                                    name=f"{PREFIX}help"))
+        self.logger.info(f'Logged in as '\
+            f'{self.user.name} in {"testing" if TESTING else "working"} environment.')
 
-        await self.tree.sync()  # Sync any slash commands the bot has set up
+    async def send_warning(self, ctx:commands.Context, myMessage:str):
+        """Sends warning message and deletes both messages."""
+        await ctx.reply(f"{WARN} {myMessage[:1].upper()}"\
+            f"{myMessage[1:]}{''if str(myMessage)[-1]in['.','!','?']else'.'}",
+            mention_author=False,delete_after=6)
+        try:
+            await ctx.message.delete(delay=6)
+        except Exception:
+            pass
+
+    async def send_error(self, ctx:commands.Context, myMessage: str):
+        """Sends error message and deletes both messages. Logs a warning."""
+        await ctx.reply(f"{ERR} {myMessage[:1].upper()}"\
+            f"{myMessage[1:]}{''if str(myMessage)[-1]in['.','!','?']else'.'}",
+            mention_author=False,delete_after=8)
+        try:
+            await ctx.message.delete(delay=8)
+        except Exception:
+            pass
+        self.logger.warning(myMessage)
 
     async def on_command_error(self, ctx: commands.Context, e): # Error messages
-        if isinstance(e, commands.CommandNotFound):
-            message = ctx.message  # Later overwrite the attributes
-            used_prefix = ctx.prefix  # The prefix used
-            used_command = message.content.split()[0][len(used_prefix):]  # Getting the command, `!foo a b c` -> `foo`
+        try:
+            if isinstance(e,(commands.CommandInvokeError, commands.HybridCommandError)):
+                return await self.send_error(ctx, f"{e}")
+            elif isinstance(e, commands.CommandNotFound):
+                suggestion = ctx.message.content.replace(ctx.prefix, '').split(' ')
+                available_commands = [cmd.name for cmd in self.commands]
+                matches = {cmd: SequenceMatcher(None, cmd, suggestion[0]).ratio()
+                    for cmd in available_commands}
+                suggestion[0] = max(matches.items(), key=lambda item: item[1])[0]
+                e=f"{e}. Did you mean `{ctx.prefix}{' '.join(suggestion)}`?"
+            elif isinstance(e, commands.MissingRequiredArgument):
+                e=f"{e} Run `{ctx.prefix}help {ctx.command}` for help on this command"
+            return await self.send_warning(ctx, f"{e}")
+        except:
+            await ctx.author.send(f"{ERR} I did not have permission to respond to command "\
+                +f"\"{ctx.message.content.replace(ctx.prefix, '').split(' ')[0][:20]}\""\
+                +f" in \"{ctx.message.channel.name}\". "\
+                +f"With error message: {e}{''if str(e)[-1]in['.','!','?']else'.'}")
 
-            available_commands = [cmd.name for cmd in self.commands]
-            matches = {  # command name: ratio
-                cmd: SequenceMatcher(None, cmd, used_command).ratio()
-                for cmd in available_commands
-            }
+class LoggerFormatter(logging.Formatter):
+    """Logging Formatter to add colours and count warning / errors"""
+    LEVEL_COLOURS = [(logging.DEBUG, '\x1b[36;1m'), (logging.NOTSET, '\x1b[37;1m'),
+                    (logging.INFO, '\x1b[32;1m'), (logging.WARNING, '\x1b[33;1m'),
+                    (logging.ERROR, '\x1b[31;1m'), (logging.CRITICAL, '\x1b[41;1m')]
 
-            command = max(matches.items(), key=lambda item: item[1])[0]  # The most similar command
+    FORMATS={level:logging.Formatter(f'%(asctime)s.%(msecs)03d {colour}%(levelname)-8s'\
+            f'\033[0m%(message)s \033[35m%(filename)s:%(funcName)s:%(lineno)d\033[0m',
+            '%Y-%b-%d %H:%M:%S')
+        for level, colour in LEVEL_COLOURS}
 
-            try:
-                arguments = message.content.split(" ", 1)[1]
-            except IndexError:
-                arguments = ""  # Command didn't take any arguments
-
-            new_content = f"{used_prefix}{command} {arguments}".strip()
-
-            await ctx.channel.send(f"{ERR} Command \"{used_command}\" was not found.\n"+\
-                f"Did you mean: `{new_content}`?")
-        if isinstance(e, commands.MissingRequiredArgument):
-            await ctx.send(f"{ERR} Missing required arguments."
-                        + f"Run `{ctx.clean_prefix}help {ctx.command}` for help on this command.")
-            # "Missing required arguments. Run !!help _ for help on this command."
-        if isinstance(e, commands.NotOwner):
-            await ctx.send(f"{ERR} {e}")
-            # You do not own this bot.
-        if isinstance(e, commands.MissingPermissions):
-            await ctx.send(f"{ERR} {e}")
-            # "You are missing Administrator permission(s) to run this command."
-        if isinstance(e, commands.CommandOnCooldown):
-            await ctx.send(f"{ERR} {e}.")
-            # "You are on cooldown. Try again in _."
-        if isinstance(e, commands.BadArgument):
-            await ctx.send(f"{ERR} {e}.")
-            # "bad argument _."
-        elif isinstance(e, commands.NoPrivateMessage):
-            try:
-                await ctx.author.send(f"{ERR} {e}")
-                # "This command cannot be used in private messages."
-            except:
-                pass
+    def format(self,record):return self.FORMATS.get(record.levelno).format(record)
 
 if __name__ == '__main__':
     main()

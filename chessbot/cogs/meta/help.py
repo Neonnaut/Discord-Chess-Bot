@@ -2,7 +2,10 @@ from typing import Optional, Set
 import discord
 from discord import Embed
 from discord.ext import commands
+from constants import ERR, PREFIX
 
+def assign_prefix(prefix, message):
+    return message.replace('|p|', PREFIX).replace('|h|', prefix)
 
 class HelpDropdown(discord.ui.Select):
     def __init__(self, help_command: "MyHelpCommand", options: list[discord.SelectOption]):
@@ -33,13 +36,14 @@ class HelpView(discord.ui.View):
 
 
 class MyHelpCommand(commands.MinimalHelpCommand):
-    def get_command_signature(self, command):
-        return f"{self.context.clean_prefix}{command.qualified_name} {command.signature}"
+    def get_command_signature(self, command: commands.Command):
+        return f"{command.qualified_name} {command.signature}"
 
     def __init__(self):
         attrs = {
-            "hidden": True,
-        }
+        #    "hidden": True,
+            "help": "The command used to show this message.\nUse `help [command]` for help on a command or group of commands"
+        }   
         super().__init__(command_attrs=attrs)
 
     async def _cog_select_options(self) -> list[discord.SelectOption]:
@@ -52,6 +56,7 @@ class MyHelpCommand(commands.MinimalHelpCommand):
             emoji = getattr(cog, "COG_EMOJI", None)
             options.append(discord.SelectOption(
                 label=cog.qualified_name.capitalize() if cog else "No Category",
+                value=cog.qualified_name if cog else "No Category",
                 emoji=emoji,
                 description=cog.description[:100] if cog and cog.description else None
             ))
@@ -60,9 +65,10 @@ class MyHelpCommand(commands.MinimalHelpCommand):
 
     async def _help_embed(
         self, title: str, description: Optional[str] = None, mapping: Optional[str] = None,
-        command_set: Optional[Set[commands.Command]] = None, set_author: bool = False
+        command_set: Optional[Set[commands.Command]] = None, set_author: bool = False,
+        set_footer: bool = False
     ) -> Embed:
-        embed = Embed(title=title)
+        embed = Embed(title=title, colour=0Xa69f9c)
         if description:
             embed.description = description
         if set_author:
@@ -73,9 +79,10 @@ class MyHelpCommand(commands.MinimalHelpCommand):
             # show help about all commands in the set
             filtered = await self.filter_commands(command_set, sort=True)
             for command in filtered:
+                my_help = assign_prefix(self.context.clean_prefix,command.help or '...') if command.help else '...'
                 embed.add_field(
-                    name=self.get_command_signature(command),
-                    value=command.help or "...",
+                    name=f"{self.get_command_signature(command).strip().capitalize()}",
+                    value=my_help[:250].strip() + '...' if len(my_help) > 253 else my_help,
                     inline=False
                 )
         elif mapping:
@@ -89,7 +96,7 @@ class MyHelpCommand(commands.MinimalHelpCommand):
                 cog_label = f"{emoji} {name}" if emoji else name
                 # \u2002 is an en-space
                 cmd_list = "\u2002 ".join(
-                    f"`{cmd.name}`" for cmd in filtered
+                    f"{cmd.name.capitalize()}" for cmd in filtered
                 )
                 value = (
                     f"{cmd_list}"
@@ -97,13 +104,15 @@ class MyHelpCommand(commands.MinimalHelpCommand):
                     else cmd_list
                 )
                 embed.add_field(name=cog_label, value=value, inline=False)
+        if set_footer:
+            embed.set_footer(text=set_footer)
         return embed
 
     async def bot_help_embed(self, mapping: dict) -> Embed:
         return await self._help_embed(
             title="Bot Commands",
             description=f"Type `{self.context.clean_prefix}help <command>` for more info on a command. \
-                You can also choose a category for more info by using the dropdown list, or by typing `{self.context.clean_prefix}help <actegory>`",
+                You can choose a category for more info by using the dropdown list, or type `{self.context.clean_prefix}help <category>`",
             mapping=mapping,
             set_author=True,
         )
@@ -117,11 +126,11 @@ class MyHelpCommand(commands.MinimalHelpCommand):
     async def send_command_help(self, command: commands.Command):
         emoji = getattr(command.cog, "COG_EMOJI", None)
         embed = await self._help_embed(
-            title=f"{emoji} {command.qualified_name}" if emoji else command.qualified_name,
-            description="`" +
-            self.get_command_signature(command)+"`\n\n" + command.help,
+            title=f"{emoji} {self.get_command_signature(command).strip().capitalize()}" if emoji else self.get_command_signature(command),
+            description=f"\n\n{assign_prefix(self.context.clean_prefix,command.help or '...')}",
             command_set=command.commands if isinstance(
-                command, commands.Group) else None
+                command, commands.Group) else None,
+            set_footer="Command aliases: "+', '.join(map(str,command.aliases)) if command.aliases else None
         )
         await self.get_destination().send(embed=embed)
 
@@ -132,9 +141,20 @@ class MyHelpCommand(commands.MinimalHelpCommand):
                 command_set=self.get_bot_mapping()[None]
             )
         emoji = getattr(cog, "COG_EMOJI", None)
+        myCommands = cog.get_commands()
+        if len(myCommands) == 1:
+            command = myCommands[0]
+            if isinstance(command, commands.Group):
+                return await self._help_embed(
+                    title=f"{emoji} {self.get_command_signature(command).strip().capitalize()}" if emoji else self.get_command_signature(command),
+                    description=f"\n\n{assign_prefix(self.context.clean_prefix,command.help or '...')}",
+                    command_set=command.commands if isinstance(
+                        command, commands.Group) else None,
+                        set_footer="Command aliases: "+', '.join(map(str,command.aliases)) if command.aliases else None
+                )
         return await self._help_embed(
             title=f"{emoji} {cog.qualified_name.capitalize()}" if emoji else cog.qualified_name.capitalize(),
-            description=cog.description,
+            description=f"{cog.description}\nUse `help{self.context.clean_prefix}<command>` for help on an individual command.",
             command_set=cog.get_commands()
         )
 
@@ -146,19 +166,5 @@ class MyHelpCommand(commands.MinimalHelpCommand):
     # Use the same function as command help for group help
     send_group_help = send_command_help
 
-
-class Help(commands.Cog, name="Help"):
-    """Shows help info about a list of commands or a single command"""
-
-    def __init__(self, bot):
-        self.bot = bot
-        self._original_help_command = bot.help_command
-        bot.help_command = MyHelpCommand()
-        bot.help_command.cog = self
-
-    def cog_unload(self):
-        self.bot.help_command = self._original_help_command
-
-
-async def setup(bot: commands.bot):
-    await bot.add_cog(Help(bot))
+    async def command_not_found(self, message):
+        return f'{ERR} Command "{message}" not found.'
